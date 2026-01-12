@@ -379,3 +379,36 @@ func TestParseDeleteWithStringCondition(t *testing.T) {
 		t.Errorf("WHERE value wrong. expected=test@example.com, got=%v", deleteStmt.Where.Value)
 	}
 }
+
+func TestParseJoin(t *testing.T) {
+	input := "SELECT users.name, orders.total FROM users JOIN orders ON users.id = orders.user_id"
+
+	l := lexer.New(input)
+	p := New(l)
+
+	stmt, err := p.ParseStatement()
+	if err != nil {
+		t.Fatalf("ParseStatement() returned error: %v", err)
+	}
+
+	joinStmt, ok := stmt.(*ast.JoinStatement)
+	if !ok {
+		t.Fatalf("stmt is not *JoinStmt. got=%T", stmt)
+	}
+
+	if joinStmt.LeftTable != "users" {
+		t.Errorf("left table wrong. expected=users, got=%s", joinStmt.LeftTable)
+	}
+
+	if joinStmt.RightTable != "orders" {
+		t.Errorf("right table wrong. expected=orders, got=%s", joinStmt.RightTable)
+	}
+
+	if joinStmt.OnLeft != "id" {
+		t.Errorf("OnLeft wrong. expected=id, got=%s", joinStmt.OnLeft)
+	}
+
+	if joinStmt.OnRight != "user_id" {
+		t.Errorf("OnRight wrong. expected=user_id, got=%s", joinStmt.OnRight)
+	}
+}

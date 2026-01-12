@@ -80,3 +80,18 @@ func (ds *DeleteStatement) statementNode() {}
 func (ds *DeleteStatement) String() string {
 	return "DELETE FROM " + ds.Table
 }
+
+// SELECT left.col, right.col FROM left JOIN right ON left.id = right.id
+type JoinStatement struct {
+	LeftTable  string
+	RightTable string
+	LeftCols   []string // cols to select from left table
+	RightCols  []string // cols to select from right table
+	OnLeft     string   // left side of ON condition
+	OnRight    string   // right side of ON condition
+}
+
+func (js *JoinStatement) statementNode() {}
+func (js *JoinStatement) String() string {
+	return "JOIN " + js.LeftTable + " " + js.RightTable
+}

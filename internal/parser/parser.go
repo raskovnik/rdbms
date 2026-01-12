@@ -239,12 +239,16 @@ func (p *Parser) parseColumnDef() (ast.ColumnDef, error) {
 	return col, nil
 }
 
-func (p *Parser) parseSelectStatement() (*ast.SelectStatement, error) {
-
-	stmt := &ast.SelectStatement{}
-
+func (p *Parser) parseSelectStatement() (ast.Statement, error) {
 	// current token should be SELECT
 	p.nextToken() // move to column name or *
+
+	// check if first column has table.column notation -> indicates JOIN
+	if p.curTokenIs(token.IDENT) && p.peekTokenIs(token.DOT) {
+		// likely a JOIN
+		return p.parseJoinStatement()
+	}
+	stmt := &ast.SelectStatement{}
 
 	// parse column(s)
 	if p.curTokenIs(token.ASTERISK) {
@@ -273,7 +277,7 @@ func (p *Parser) parseSelectStatement() (*ast.SelectStatement, error) {
 
 	// expect FROM
 	if !p.curTokenIs(token.FROM) {
-		return nil, fmt.Errorf("expected FROM after * or column name")
+		return nil, fmt.Errorf("expected FROM after * or column name, got %s", p.curToken.Type)
 	}
 
 	// get table name
@@ -416,4 +420,127 @@ func (p *Parser) parseDeleteStatement() (*ast.DeleteStatement, error) {
 	}
 
 	return stmt, nil
+}
+
+func (p *Parser) parseJoinStatement() (*ast.JoinStatement, error) {
+	stmt := &ast.JoinStatement{}
+
+	// note to self -> parse from SELECT and not from JOIN, JOIN is not independent
+
+	// parse column selections table.column
+	for {
+		if !p.curTokenIs(token.IDENT) {
+			return nil, fmt.Errorf("expected table name in column")
+		}
+		tableName := p.curToken.Literal
+
+		if !p.expectPeek(token.DOT) {
+			return nil, fmt.Errorf("expected . after table name")
+		}
+
+		if !p.expectPeek(token.IDENT) {
+			return nil, fmt.Errorf("expected column name after .")
+		}
+
+		columnName := p.curToken.Literal
+
+		// determine which table this column belongs to
+		switch stmt.LeftTable {
+		case "":
+			stmt.LeftTable = tableName
+			stmt.LeftCols = []string{columnName}
+		case tableName:
+			stmt.LeftCols = append(stmt.LeftCols, columnName)
+		default:
+			if stmt.RightTable == "" {
+				stmt.RightTable = tableName
+			}
+			stmt.RightCols = append(stmt.RightCols, columnName)
+		}
+
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // move to next table.column
+		} else {
+			p.nextToken() // move past last column
+			break
+		}
+	}
+
+	// expect FROM
+	if !p.curTokenIs(token.FROM) {
+		return nil, fmt.Errorf("expected FROM")
+	}
+
+	// get first table name
+	if !p.expectPeek(token.IDENT) {
+		return nil, fmt.Errorf("expected table name")
+	}
+
+	leftTable := p.curToken.Literal
+
+	// expect JOIN
+	if !p.expectPeek(token.JOIN) {
+		return nil, fmt.Errorf("expected JOIN after table name")
+	}
+
+	// get right table name
+	if !p.expectPeek(token.IDENT) {
+		return nil, fmt.Errorf("expected table name after JOIN")
+	}
+
+	rightTable := p.curToken.Literal
+
+	// verify tables match what we parsed in SELECT
+	if stmt.LeftTable != leftTable {
+		stmt.LeftTable = leftTable
+	}
+	if stmt.RightTable != rightTable {
+		stmt.RightTable = rightTable
+	}
+
+	// expect ON
+	if !p.expectPeek(token.ON) {
+		return nil, fmt.Errorf("expected ON after table name")
+	}
+
+	// parse ON condition -> left.column = right.column
+	if !p.expectPeek(token.IDENT) {
+		return nil, fmt.Errorf("expected table name in ON clause")
+	}
+
+	leftTable = p.curToken.Literal
+
+	if !p.expectPeek(token.DOT) {
+		return nil, fmt.Errorf("expected . in ON clause")
+	}
+
+	if !p.expectPeek(token.IDENT) {
+		return nil, fmt.Errorf("expected column name in ON clause")
+	}
+
+	stmt.OnLeft = p.curToken.Literal
+
+	if !p.expectPeek(token.ASSIGN) {
+		return nil, fmt.Errorf("expected = in ON clause")
+	}
+
+	if !p.expectPeek(token.IDENT) {
+		return nil, fmt.Errorf("expected table name in ON clause")
+	}
+
+	rightTable = p.curToken.Literal
+
+	if !p.expectPeek(token.DOT) {
+		return nil, fmt.Errorf("expected . in ON clause")
+	}
+
+	if !p.expectPeek(token.IDENT) {
+		return nil, fmt.Errorf("expected column name in ON clause")
+	}
+
+	stmt.OnRight = p.curToken.Literal
+
+	return stmt, nil
+
 }
