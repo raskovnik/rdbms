@@ -66,6 +66,8 @@ func (p *Parser) ParseStatement() (ast.Statement, error) {
 	switch p.curToken.Type {
 	case token.INSERT:
 		return p.parseInsert()
+	case token.CREATE:
+		return p.parseCreateStatement()
 	default:
 		return nil, fmt.Errorf("unexpected token: %s", p.curToken.Type)
 	}
@@ -139,4 +141,94 @@ func (p *Parser) parseValue() (interface{}, error) {
 	default:
 		return nil, fmt.Errorf("unexpected value type: %s", p.curToken.Type)
 	}
+}
+
+func (p *Parser) parseCreateStatement() (*ast.CreateStatement, error) {
+	stmt := &ast.CreateStatement{}
+
+	// current token is CREATE
+	if !p.expectPeek(token.TABLE) {
+		return nil, fmt.Errorf("expected TABLE after CREATE")
+	}
+
+	// get table name
+	if !p.expectPeek(token.IDENT) {
+		return nil, fmt.Errorf("expected table name")
+	}
+
+	stmt.Table = p.curToken.Literal
+
+	// expect opening paren
+	if !p.expectPeek(token.LPAREN) {
+		return nil, fmt.Errorf("expected '(' after table name")
+	}
+
+	// parse columns
+	stmt.Columns = []ast.ColumnDef{}
+
+	// move to first column
+	p.nextToken()
+
+	for !p.curTokenIs(token.RPAREN) && !p.curTokenIs(token.EOF) {
+		col, err := p.parseColumnDef()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Columns = append(stmt.Columns, col)
+
+		// check for comma -> more columnr or closing rparen -> done
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // move to next column name
+		} else if p.peekTokenIs(token.RPAREN) {
+			p.nextToken() // move to closing rparen
+		} else {
+			return nil, fmt.Errorf("expected ',' or ')' after column definition")
+		}
+	}
+
+	if !p.curTokenIs(token.RPAREN) {
+		return nil, fmt.Errorf("expected ) to close column definitions")
+	}
+
+	return stmt, nil
+}
+
+func (p *Parser) parseColumnDef() (ast.ColumnDef, error) {
+	col := ast.ColumnDef{}
+
+	// current token should be column name
+	if !p.curTokenIs(token.IDENT) {
+		return col, fmt.Errorf("expected column name, got %s", p.curToken.Type)
+	}
+
+	col.Name = p.curToken.Literal
+
+	// next should be the type
+	p.nextToken()
+	switch p.curToken.Type {
+	case token.TYPE_INT:
+		col.Type = "INT"
+	case token.TYPE_TEXT:
+		col.Type = "TEXT"
+	case token.TYPE_BOOL:
+		col.Type = "BOOL"
+	default:
+		return col, fmt.Errorf("expected type (INT, STRING, BOOL), got %s", p.curToken.Type)
+	}
+
+	// check for primary key or unique
+	if p.peekTokenIs(token.PRIMARY) {
+		p.nextToken() // consume primary
+		if !p.expectPeek(token.KEY) {
+			return col, fmt.Errorf("expected KEY after PRIMARY")
+		}
+
+		col.PrimaryKey = true
+	} else if p.peekTokenIs(token.UNIQUE) {
+		p.nextToken() // consume unique
+		col.Unique = true
+	}
+
+	return col, nil
 }
