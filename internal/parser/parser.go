@@ -68,6 +68,8 @@ func (p *Parser) ParseStatement() (ast.Statement, error) {
 		return p.parseInsert()
 	case token.CREATE:
 		return p.parseCreateStatement()
+	case token.SELECT:
+		return p.parseSelectStatement()
 	default:
 		return nil, fmt.Errorf("unexpected token: %s", p.curToken.Type)
 	}
@@ -231,4 +233,96 @@ func (p *Parser) parseColumnDef() (ast.ColumnDef, error) {
 	}
 
 	return col, nil
+}
+
+func (p *Parser) parseSelectStatement() (*ast.SelectStatement, error) {
+
+	stmt := &ast.SelectStatement{}
+
+	// current token should be SELECT
+	p.nextToken() // move to column name or *
+
+	// parse column(s)
+	if p.curTokenIs(token.ASTERISK) {
+		stmt.Columns = []string{"*"}
+		p.nextToken() // move past *
+	} else {
+		// parse column list
+		stmt.Columns = []string{}
+		for {
+			if !p.curTokenIs(token.IDENT) {
+				return nil, fmt.Errorf("expected column name but got %s instead", p.curToken.Type)
+			}
+
+			stmt.Columns = append(stmt.Columns, p.curToken.Literal)
+
+			if p.peekTokenIs(token.COMMA) {
+				p.nextToken() // consume comma
+				p.nextToken() // move to next column
+			} else {
+				p.nextToken() // move past last column
+				break
+			}
+		}
+
+	}
+
+	// expect FROM
+	if !p.curTokenIs(token.FROM) {
+		return nil, fmt.Errorf("expected FROM after * or column name")
+	}
+
+	// get table name
+	if !p.expectPeek(token.IDENT) {
+		return nil, fmt.Errorf("expected table name")
+	}
+
+	stmt.Table = p.curToken.Literal
+
+	// check for WHERE clause
+	if p.peekTokenIs(token.WHERE) {
+		p.nextToken() // consume WHERE
+		wc, err := p.parseWhereClause()
+		if err != nil {
+			return nil, err
+		}
+
+		stmt.Where = wc
+	}
+	return stmt, nil
+}
+
+func (p *Parser) parseWhereClause() (*ast.WhereClause, error) {
+	where := &ast.WhereClause{}
+
+	// get column name
+	if !p.expectPeek(token.IDENT) {
+		return nil, fmt.Errorf("expected column name in WHERE clause, got %s", p.curToken.Type)
+	}
+
+	where.Column = p.curToken.Literal
+
+	// get the operator
+	p.nextToken() // move to the operator
+	switch p.curToken.Type {
+	case token.ASSIGN:
+		where.Operator = "="
+	case token.GT:
+		where.Operator = ">"
+	case token.LT:
+		where.Operator = "<"
+	default:
+		return nil, fmt.Errorf("expected operator (=, >, <), got %s instead", p.curToken.Type)
+	}
+
+	// get the value
+	p.nextToken()
+	val, err := p.parseValue()
+	if err != nil {
+		return nil, err
+	}
+
+	where.Value = val
+
+	return where, nil
 }
