@@ -292,3 +292,90 @@ func TestParseUpdateMultipleColumnsNoWhere(t *testing.T) {
 		t.Error("expected no WHERE clause, but got one")
 	}
 }
+
+func TestParseDeleteWithWhere(t *testing.T) {
+	input := "DELETE FROM users WHERE id = 1"
+
+	l := lexer.New(input)
+	p := New(l)
+
+	stmt, err := p.ParseStatement()
+	if err != nil {
+		t.Fatalf("ParseStatement() returned error: %v", err)
+	}
+
+	deleteStmt, ok := stmt.(*ast.DeleteStatement)
+	if !ok {
+		t.Fatalf("stmt is not *DeleteStatement. got=%T", stmt)
+	}
+
+	if deleteStmt.Table != "users" {
+		t.Errorf("table name wrong. expected=users, got=%s", deleteStmt.Table)
+	}
+
+	if deleteStmt.Where == nil {
+		t.Fatal("expected WHERE clause")
+	}
+
+	if deleteStmt.Where.Column != "id" {
+		t.Errorf("WHERE column wrong. expected=id, got=%s", deleteStmt.Where.Column)
+	}
+
+	if deleteStmt.Where.Value != 1 {
+		t.Errorf("WHERE value wrong. expected=1, got=%v", deleteStmt.Where.Value)
+	}
+}
+
+func TestParseDeleteWithoutWhere(t *testing.T) {
+	input := "DELETE FROM users"
+
+	l := lexer.New(input)
+	p := New(l)
+
+	stmt, err := p.ParseStatement()
+	if err != nil {
+		t.Fatalf("ParseStatement() returned error: %v", err)
+	}
+
+	deleteStmt, ok := stmt.(*ast.DeleteStatement)
+	if !ok {
+		t.Fatalf("stmt is not *DeleteStatement. got=%T", stmt)
+	}
+
+	if deleteStmt.Table != "users" {
+		t.Errorf("table name wrong. expected=users, got=%s", deleteStmt.Table)
+	}
+
+	if deleteStmt.Where != nil {
+		t.Error("expected no WHERE clause, but got one")
+	}
+}
+
+func TestParseDeleteWithStringCondition(t *testing.T) {
+	input := "DELETE FROM users WHERE email = 'test@example.com'"
+
+	l := lexer.New(input)
+	p := New(l)
+
+	stmt, err := p.ParseStatement()
+	if err != nil {
+		t.Fatalf("ParseStatement() returned error: %v", err)
+	}
+
+	deleteStmt, ok := stmt.(*ast.DeleteStatement)
+	if !ok {
+		t.Fatalf("stmt is not *DeleteStatement. got=%T", stmt)
+	}
+
+	if deleteStmt.Where == nil {
+		t.Fatal("expected WHERE clause")
+	}
+
+	if deleteStmt.Where.Column != "email" {
+		t.Errorf("WHERE column wrong. expected=email, got=%s", deleteStmt.Where.Column)
+	}
+
+	if deleteStmt.Where.Value != "test@example.com" {
+		t.Errorf("WHERE value wrong. expected=test@example.com, got=%v", deleteStmt.Where.Value)
+	}
+}

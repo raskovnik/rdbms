@@ -72,6 +72,8 @@ func (p *Parser) ParseStatement() (ast.Statement, error) {
 		return p.parseSelectStatement()
 	case token.UPDATE:
 		return p.parseUpdateStatement()
+	case token.DELETE:
+		return p.parseDeleteStatement()
 	default:
 		return nil, fmt.Errorf("unexpected token: %s", p.curToken.Type)
 	}
@@ -381,6 +383,35 @@ func (p *Parser) parseUpdateStatement() (*ast.UpdateStatement, error) {
 		if err != nil {
 			return nil, err
 		}
+		stmt.Where = wc
+	}
+
+	return stmt, nil
+}
+
+func (p *Parser) parseDeleteStatement() (*ast.DeleteStatement, error) {
+	stmt := &ast.DeleteStatement{}
+
+	// current token should be DELETE
+	if !p.expectPeek(token.FROM) {
+		return nil, fmt.Errorf("expected FROM after DELETE")
+	}
+
+	// get table name
+	if !p.expectPeek(token.IDENT) {
+		return nil, fmt.Errorf("expected table name after FROM")
+	}
+
+	stmt.Table = p.curToken.Literal
+
+	// WHERE is optional
+	if p.peekTokenIs(token.WHERE) {
+		p.nextToken() // consume where
+		wc, err := p.parseWhereClause()
+		if err != nil {
+			return nil, err
+		}
+
 		stmt.Where = wc
 	}
 

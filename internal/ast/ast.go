@@ -69,3 +69,14 @@ func (us *UpdateStatement) statementNode() {}
 func (us *UpdateStatement) String() string {
 	return "UPDATE " + us.Table
 }
+
+// DELETE FROM table WHERE condition
+type DeleteStatement struct {
+	Table string
+	Where *WhereClause
+}
+
+func (ds *DeleteStatement) statementNode() {}
+func (ds *DeleteStatement) String() string {
+	return "DELETE FROM " + ds.Table
+}
