@@ -140,3 +140,155 @@ func TestParseSelect(t *testing.T) {
 		}
 	}
 }
+
+func TestParseUpdateSingleColumn(t *testing.T) {
+	input := "UPDATE users SET name = 'Bob' WHERE id = 1"
+
+	l := lexer.New(input)
+	p := New(l)
+
+	stmt, err := p.ParseStatement()
+	if err != nil {
+		t.Fatalf("ParseStatement() returned error: %v", err)
+	}
+
+	updateStmt, ok := stmt.(*ast.UpdateStatement)
+	if !ok {
+		t.Fatalf("stmt is not *UpdateStatement. got=%T", stmt)
+	}
+
+	if updateStmt.Table != "users" {
+		t.Errorf("table name wrong. expected=users, got=%s", updateStmt.Table)
+	}
+
+	if len(updateStmt.Updates) != 1 {
+		t.Fatalf("wrong number of updates. expected=1, got=%d", len(updateStmt.Updates))
+	}
+
+	if updateStmt.Updates[0].Column != "name" {
+		t.Errorf("column wrong. expected=name, got=%s", updateStmt.Updates[0].Column)
+	}
+
+	if updateStmt.Updates[0].Value != "Bob" {
+		t.Errorf("value wrong. expected=Bob, got=%v", updateStmt.Updates[0].Value)
+	}
+
+	if updateStmt.Where == nil {
+		t.Fatal("expected WHERE clause")
+	}
+
+	if updateStmt.Where.Column != "id" {
+		t.Errorf("WHERE column wrong. expected=id, got=%s", updateStmt.Where.Column)
+	}
+
+	if updateStmt.Where.Value != 1 {
+		t.Errorf("WHERE value wrong. expected=1, got=%v", updateStmt.Where.Value)
+	}
+}
+
+func TestParseUpdateMultipleColumns(t *testing.T) {
+	input := "UPDATE users SET name = 'Bob', email = 'bob@example.com', age = 30 WHERE id = 1"
+
+	l := lexer.New(input)
+	p := New(l)
+
+	stmt, err := p.ParseStatement()
+	if err != nil {
+		t.Fatalf("ParseStatement() returned error: %v", err)
+	}
+
+	updateStmt, ok := stmt.(*ast.UpdateStatement)
+	if !ok {
+		t.Fatalf("stmt is not *UpdateStatement. got=%T", stmt)
+	}
+
+	if updateStmt.Table != "users" {
+		t.Errorf("table name wrong. expected=users, got=%s", updateStmt.Table)
+	}
+
+	if len(updateStmt.Updates) != 3 {
+		t.Fatalf("wrong number of updates. expected=3, got=%d", len(updateStmt.Updates))
+	}
+
+	// Check first update (name = 'Bob')
+	if updateStmt.Updates[0].Column != "name" {
+		t.Errorf("updates[0] column wrong. expected=name, got=%s", updateStmt.Updates[0].Column)
+	}
+	if updateStmt.Updates[0].Value != "Bob" {
+		t.Errorf("updates[0] value wrong. expected=Bob, got=%v", updateStmt.Updates[0].Value)
+	}
+
+	// Check second update (email = 'bob@example.com')
+	if updateStmt.Updates[1].Column != "email" {
+		t.Errorf("updates[1] column wrong. expected=email, got=%s", updateStmt.Updates[1].Column)
+	}
+	if updateStmt.Updates[1].Value != "bob@example.com" {
+		t.Errorf("updates[1] value wrong. expected=bob@example.com, got=%v", updateStmt.Updates[1].Value)
+	}
+
+	// Check third update (age = 30)
+	if updateStmt.Updates[2].Column != "age" {
+		t.Errorf("updates[2] column wrong. expected=age, got=%s", updateStmt.Updates[2].Column)
+	}
+	if updateStmt.Updates[2].Value != 30 {
+		t.Errorf("updates[2] value wrong. expected=30, got=%v", updateStmt.Updates[2].Value)
+	}
+
+	if updateStmt.Where == nil {
+		t.Fatal("expected WHERE clause")
+	}
+}
+
+func TestParseUpdateNoWhere(t *testing.T) {
+	input := "UPDATE users SET name = 'Everyone'"
+
+	l := lexer.New(input)
+	p := New(l)
+
+	stmt, err := p.ParseStatement()
+	if err != nil {
+		t.Fatalf("ParseStatement() returned error: %v", err)
+	}
+
+	updateStmt, ok := stmt.(*ast.UpdateStatement)
+	if !ok {
+		t.Fatalf("stmt is not *UpdateStatement. got=%T", stmt)
+	}
+
+	if updateStmt.Table != "users" {
+		t.Errorf("table name wrong. expected=users, got=%s", updateStmt.Table)
+	}
+
+	if len(updateStmt.Updates) != 1 {
+		t.Fatalf("wrong number of updates. expected=1, got=%d", len(updateStmt.Updates))
+	}
+
+	if updateStmt.Where != nil {
+		t.Error("expected no WHERE clause, but got one")
+	}
+}
+
+func TestParseUpdateMultipleColumnsNoWhere(t *testing.T) {
+	input := "UPDATE users SET name = 'Bob', status = 'active'"
+
+	l := lexer.New(input)
+	p := New(l)
+
+	stmt, err := p.ParseStatement()
+	if err != nil {
+		t.Fatalf("ParseStatement() returned error: %v", err)
+	}
+
+	updateStmt, ok := stmt.(*ast.UpdateStatement)
+	if !ok {
+		t.Fatalf("stmt is not *UpdateStatement. got=%T", stmt)
+	}
+
+	if len(updateStmt.Updates) != 2 {
+		t.Fatalf("wrong number of updates. expected=2, got=%d", len(updateStmt.Updates))
+	}
+
+	if updateStmt.Where != nil {
+		t.Error("expected no WHERE clause, but got one")
+	}
+}

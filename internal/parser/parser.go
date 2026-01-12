@@ -70,6 +70,8 @@ func (p *Parser) ParseStatement() (ast.Statement, error) {
 		return p.parseCreateStatement()
 	case token.SELECT:
 		return p.parseSelectStatement()
+	case token.UPDATE:
+		return p.parseUpdateStatement()
 	default:
 		return nil, fmt.Errorf("unexpected token: %s", p.curToken.Type)
 	}
@@ -325,4 +327,62 @@ func (p *Parser) parseWhereClause() (*ast.WhereClause, error) {
 	where.Value = val
 
 	return where, nil
+}
+
+func (p *Parser) parseUpdateStatement() (*ast.UpdateStatement, error) {
+	stmt := &ast.UpdateStatement{}
+
+	// current token should be UPDATe
+	if !p.expectPeek(token.IDENT) {
+		return nil, fmt.Errorf("expected table name after UPDATE, got %s", p.peekToken.Type)
+	}
+
+	stmt.Table = p.curToken.Literal
+
+	if !p.expectPeek(token.SET) {
+		return nil, fmt.Errorf("expected SET after table name")
+	}
+
+	// loop through column = value pairs
+	stmt.Updates = []ast.ColumnUpdate{}
+	for {
+		if !p.expectPeek(token.IDENT) {
+			return nil, fmt.Errorf("expected column name")
+		}
+
+		colName := p.curToken.Literal
+
+		// parse =
+		if !p.expectPeek(token.ASSIGN) {
+			return nil, fmt.Errorf("expected =")
+		}
+
+		p.nextToken() // consume =
+		val, err := p.parseValue()
+		if err != nil {
+			return nil, err
+		}
+
+		stmt.Updates = append(stmt.Updates, ast.ColumnUpdate{Column: colName, Value: val})
+
+		// check for comma -> more updates or WHERE/EOF -> done
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken() // consume comma
+			continue
+		} else {
+			break
+		}
+	}
+
+	// WHERE clause is optional
+	if p.peekTokenIs(token.WHERE) {
+		p.nextToken() // consume WHERE
+		wc, err := p.parseWhereClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Where = wc
+	}
+
+	return stmt, nil
 }

@@ -52,3 +52,20 @@ func (ss *SelectStatement) statementNode() {}
 func (ss *SelectStatement) String() string {
 	return "SELECT FROM " + ss.Table
 }
+
+type ColumnUpdate struct {
+	Column string
+	Value  interface{}
+}
+
+// UPDATE table SET col = val, col = val, WHERE condition
+type UpdateStatement struct {
+	Table   string
+	Updates []ColumnUpdate
+	Where   *WhereClause
+}
+
+func (us *UpdateStatement) statementNode() {}
+func (us *UpdateStatement) String() string {
+	return "UPDATE " + us.Table
+}
