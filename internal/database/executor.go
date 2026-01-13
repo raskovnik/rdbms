@@ -106,3 +106,92 @@ func isValidType(value interface{}, expectedType string) bool {
 		return false
 	}
 }
+
+func (db *Database) executeSelect(stmt *ast.SelectStatement) ([]Row, error) {
+	// select */[]columns(string) from tablename() where (optional) condition
+
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	// get table
+	table, exists := db.tables[stmt.Table]
+	if !exists {
+		return nil, fmt.Errorf("table %s does not exist", stmt.Table)
+	}
+
+	var results []Row
+
+	// if WHERE clause exists and targets an indexed column, use index for better performance
+	if stmt.Where != nil {
+		if index, indexed := table.Indexes[stmt.Where.Column]; indexed {
+			// use index lookup
+			rowIndices := index.Lookup(stmt.Where.Value)
+
+			for _, idx := range rowIndices {
+				row := table.Rows[idx]
+				if evaluateWhere(row, stmt.Where) {
+					results = append(results, row)
+				}
+			}
+		} else {
+			// full table scan
+			for _, row := range table.Rows {
+				if evaluateWhere(row, stmt.Where) {
+					results = append(results, row)
+				}
+			}
+		}
+	} else {
+		// no where clause -> return all rows
+		results = table.Rows
+	}
+
+	// filter columns if not SELECT *
+	if len(stmt.Columns) == 1 && stmt.Columns[0] == "*" {
+		return results, nil
+	}
+
+	// project specific columns
+	projected := make([]Row, len(results))
+	for i, row := range results {
+		projectedRow := make(Row)
+		for _, col := range stmt.Columns {
+			if val, exists := row[col]; exists {
+				projectedRow[col] = val
+			} else {
+				return nil, fmt.Errorf("column %s does not exist", col)
+			}
+		}
+		projected[i] = projectedRow
+	}
+
+	return projected, nil
+}
+
+func evaluateWhere(row Row, where *ast.WhereClause) bool {
+	value, exists := row[where.Column]
+	if !exists {
+		return false
+	}
+
+	switch where.Operator {
+	case "=":
+		return value == where.Value
+	case ">":
+		if intVal, ok := value.(int); ok {
+			if intWhere, ok := where.Value.(int); ok {
+				return intVal > intWhere
+			}
+		}
+		return false
+	case "<":
+		if intVal, ok := value.(int); ok {
+			if intWhere, ok := where.Value.(int); ok {
+				return intVal < intWhere
+			}
+		}
+		return false
+	default:
+		return false
+	}
+}

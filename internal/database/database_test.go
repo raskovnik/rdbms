@@ -69,3 +69,144 @@ func TestExecuteCreateTableDuplicate(t *testing.T) {
 		t.Fatal("expected error for duplicate table, got nil")
 	}
 }
+
+func TestExecuteInsert(t *testing.T) {
+	db := NewDB()
+
+	// Create table first
+	createStmt := &ast.CreateStatement{
+		Table: "users",
+		Columns: []ast.ColumnDef{
+			{Name: "id", Type: "INT", PrimaryKey: true},
+			{Name: "name", Type: "TEXT"},
+		},
+	}
+	db.executeCreate(createStmt)
+
+	// Insert row
+	insertStmt := &ast.InsertStatement{
+		Table:  "users",
+		Values: []interface{}{1, "Alice"},
+	}
+
+	err := db.executeInsert(insertStmt)
+	if err != nil {
+		t.Fatalf("executeInsert failed: %v", err)
+	}
+
+	// Verify row was added
+	table := db.tables["users"]
+	if len(table.Rows) != 1 {
+		t.Fatalf("wrong number of rows. expected=1, got=%d", len(table.Rows))
+	}
+
+	if table.Rows[0]["id"] != 1 {
+		t.Errorf("wrong id. expected=1, got=%v", table.Rows[0]["id"])
+	}
+
+	if table.Rows[0]["name"] != "Alice" {
+		t.Errorf("wrong name. expected=Alice, got=%v", table.Rows[0]["name"])
+	}
+}
+
+func TestExecuteInsertDuplicatePrimaryKey(t *testing.T) {
+	db := NewDB()
+
+	createStmt := &ast.CreateStatement{
+		Table: "users",
+		Columns: []ast.ColumnDef{
+			{Name: "id", Type: "INT", PrimaryKey: true},
+			{Name: "name", Type: "TEXT"},
+		},
+	}
+	db.executeCreate(createStmt)
+
+	// Insert first row
+	insertStmt := &ast.InsertStatement{
+		Table:  "users",
+		Values: []interface{}{1, "Alice"},
+	}
+	db.executeInsert(insertStmt)
+
+	// Try to insert duplicate PK
+	insertStmt2 := &ast.InsertStatement{
+		Table:  "users",
+		Values: []interface{}{1, "Bob"},
+	}
+
+	err := db.executeInsert(insertStmt2)
+	if err == nil {
+		t.Fatal("expected error for duplicate primary key, got nil")
+	}
+}
+
+func TestExecuteSelectAll(t *testing.T) {
+	db := setupTestDB(t)
+
+	stmt := &ast.SelectStatement{
+		Table:   "users",
+		Columns: []string{"*"},
+	}
+
+	results, err := db.executeSelect(stmt)
+	if err != nil {
+		t.Fatalf("executeSelect failed: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Fatalf("wrong number of results. expected=2, got=%d", len(results))
+	}
+}
+
+func TestExecuteSelectWithWhere(t *testing.T) {
+	db := setupTestDB(t)
+
+	stmt := &ast.SelectStatement{
+		Table:   "users",
+		Columns: []string{"*"},
+		Where: &ast.WhereClause{
+			Column:   "id",
+			Operator: "=",
+			Value:    1,
+		},
+	}
+
+	results, err := db.executeSelect(stmt)
+	if err != nil {
+		t.Fatalf("executeSelect failed: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Fatalf("wrong number of results. expected=1, got=%d", len(results))
+	}
+
+	if results[0]["name"] != "Alice" {
+		t.Errorf("wrong name. expected=Alice, got=%v", results[0]["name"])
+	}
+}
+
+// Helper function
+func setupTestDB(t *testing.T) *Database {
+	db := NewDB()
+
+	createStmt := &ast.CreateStatement{
+		Table: "users",
+		Columns: []ast.ColumnDef{
+			{Name: "id", Type: "INT", PrimaryKey: true},
+			{Name: "name", Type: "TEXT"},
+		},
+	}
+	db.executeCreate(createStmt)
+
+	db.executeInsert(&ast.InsertStatement{
+		Table:  "users",
+		Values: []interface{}{1, "Alice"},
+	})
+
+	db.executeInsert(&ast.InsertStatement{
+		Table:  "users",
+		Values: []interface{}{2, "Bob"},
+	})
+
+	return db
+}

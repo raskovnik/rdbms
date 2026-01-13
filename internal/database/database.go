@@ -54,6 +54,8 @@ func (db *Database) Execute(stmt ast.Statement) (interface{}, error) {
 	switch s := stmt.(type) {
 	case *ast.CreateStatement:
 		return nil, db.executeCreate(s)
+	case *ast.InsertStatement:
+		return nil, db.executeInsert(s)
 	default:
 		return nil, fmt.Errorf("unknown statement type: %T", stmt)
 	}
