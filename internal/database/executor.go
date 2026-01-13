@@ -195,3 +195,81 @@ func evaluateWhere(row Row, where *ast.WhereClause) bool {
 		return false
 	}
 }
+func (db *Database) executeDelete(stmt *ast.DeleteStatement) (int, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	table, exists := db.tables[stmt.Table]
+	if !exists {
+		return 0, fmt.Errorf("table %s does not exist", stmt.Table)
+	}
+
+	// DELETE FROM table (no WHERE clause) - delete all
+	if stmt.Where == nil {
+		deletedCount := len(table.Rows)
+		table.Rows = []Row{}
+		// Clear all indexes
+		for _, index := range table.Indexes {
+			index.Data = make(map[interface{}][]int)
+		}
+		return deletedCount, nil
+	}
+
+	// Filter out rows that match WHERE condition
+	var newRows []Row
+	deletedCount := 0
+
+	// Use index if available for optimization
+	if index, indexed := table.Indexes[stmt.Where.Column]; indexed {
+		// Build set of row indices to delete
+		toDelete := make(map[int]bool)
+		candidates := index.Lookup(stmt.Where.Value)
+		for _, idx := range candidates {
+			if evaluateWhere(table.Rows[idx], stmt.Where) {
+				toDelete[idx] = true
+			}
+		}
+
+		// Keep rows that aren't in toDelete set
+		for i, row := range table.Rows {
+			if toDelete[i] {
+				deletedCount++
+			} else {
+				newRows = append(newRows, row)
+			}
+		}
+	} else {
+		// Full table scan - keep rows that don't match
+		for _, row := range table.Rows {
+			if evaluateWhere(row, stmt.Where) {
+				deletedCount++
+			} else {
+				newRows = append(newRows, row)
+			}
+		}
+	}
+
+	// Replace old rows with filtered rows
+	table.Rows = newRows
+
+	// Rebuild indexes to reflect new row positions
+	db.rebuildIndexes(table)
+
+	return deletedCount, nil
+}
+
+func (db *Database) rebuildIndexes(table *Table) {
+	// Clear existing index data
+	for _, index := range table.Indexes {
+		index.Data = make(map[interface{}][]int)
+	}
+
+	// Rebuild indexes from current rows
+	for rowIndex, row := range table.Rows {
+		for colName, index := range table.Indexes {
+			if value, exists := row[colName]; exists {
+				index.Add(value, rowIndex)
+			}
+		}
+	}
+}

@@ -56,6 +56,10 @@ func (db *Database) Execute(stmt ast.Statement) (interface{}, error) {
 		return nil, db.executeCreate(s)
 	case *ast.InsertStatement:
 		return nil, db.executeInsert(s)
+	case *ast.SelectStatement:
+		return db.executeSelect(s)
+	case *ast.DeleteStatement:
+		return db.executeDelete(s)
 	default:
 		return nil, fmt.Errorf("unknown statement type: %T", stmt)
 	}
