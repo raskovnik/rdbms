@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/raskovnik/rdbms/internal/database"
+	"github.com/raskovnik/rdbms/internal/engine"
 	"github.com/raskovnik/rdbms/internal/lexer"
 	"github.com/raskovnik/rdbms/internal/parser"
 )
 
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
-	db := database.NewDB() // create DB
+	db := engine.NewDB() // create DB
 
 	for {
 		fmt.Fprint(out, "db> ")
@@ -42,7 +42,7 @@ func Start(in io.Reader, out io.Writer) {
 		switch v := res.(type) {
 		case int:
 			fmt.Fprintf(out, "rows affected: %d\n", v)
-		case []database.Row:
+		case []engine.Row:
 			printRows(v, out)
 		default:
 			fmt.Fprintln(out, "OK")
@@ -50,7 +50,7 @@ func Start(in io.Reader, out io.Writer) {
 	}
 }
 
-func printRows(rows []database.Row, out io.Writer) {
+func printRows(rows []engine.Row, out io.Writer) {
 	for _, row := range rows {
 		for col, val := range row {
 			fmt.Fprintf(out, "%s=%v ", col, val)
