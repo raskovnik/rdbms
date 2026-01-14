@@ -10,9 +10,7 @@ This project was developed as a technical challenge to demonstrate understandig 
 - Go programming best practices
 
 **Demo:**
-<video controls width="600">
-  <source src="assets/webapp.mp4" type="video/mp4">
-</video>
+[Web App Demo](assets/webapp.mp4)
 
 ## Features
 
