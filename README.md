@@ -62,7 +62,7 @@ DELETE FROM users -- delete all rows
 
 ## Architecture
 ### Systems Components
-
+![Components](assets/components.png)
 
 ### Code Structure
 ```
