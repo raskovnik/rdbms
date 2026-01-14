@@ -9,8 +9,8 @@ This project was developed as a technical challenge to demonstrate understandig 
 - System design and architecture
 - Go programming best practices
 
-**Live Demo:**
-[<video controls width="600">
+**Demo:**
+<video controls width="600">
   <source src="assets/webapp.mp4" type="video/mp4">
 </video>
 
