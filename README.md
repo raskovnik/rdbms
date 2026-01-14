@@ -10,7 +10,9 @@ This project was developed as a technical challenge to demonstrate understandig 
 - Go programming best practices
 
 **Live Demo:**
-![Todo Web app](/assets/webapp.png)
+[<video controls width="600">
+  <source src="assets/webapp.mp4" type="video/mp4">
+</video>
 
 ## Features
 
