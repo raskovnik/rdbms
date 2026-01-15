@@ -3,7 +3,7 @@
 A lightweight, in-memory rdbms built from scratch in Go, with SQL-like syntax, basic CRUD operations, constraints and a web app demo.
 
 ## Project Overview
-This project was developed as a technical challenge to demonstrate understandig of:
+This project was developed as a technical challenge to demonstrate understanding of:
 - Database internals (storage, indexing, query execution)
 - Lexical analysis and parsing
 - System design and architecture
@@ -190,7 +190,7 @@ curl -X DELETE http://localhost:8080/todos/1
 The lexer converst raw SQL text into tokens:
 ```
 Input: "SELECT * FROM users WHERE id = 1"
-Tokens :[SELECT, ASTERISK, FROM, IDENT(users), WHERE, IDENT(id), EQUALS, INT(1)]
+Tokens :[SELECT, ASTERISK, FROM, IDENT(users), WHERE, IDENT(id), ASSIGN, INT(1)]
 ```
 
 **Key features:**
@@ -271,15 +271,6 @@ This project was built using knowledge from:
 - **[SQL indexing best practices | How to make your database FASTER!](https://youtu.be/BIlFTFrEFOI)**
 - **[6 SQL Joins you MUST know! (Animated + Practice)](https://youtu.be/Yh4CrPHVBdE)**
 - **[The Markdown Guide](https://www.markdownguide.org/basic-syntax/)**
-
-
-### Tools & AI Assistance
-- **Claude AI** - Used for:
-    - Boilerplate code generation
-    - Debugging assistance
-    - Code review and optimization suggestions
-    
-    *All core logic was designed and implemented by me with understanding of the underlying concepts. AI was used as a productivity tool, not a replacement for learning*
 
 ## Known Limitations
 
