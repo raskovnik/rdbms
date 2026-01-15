@@ -9,8 +9,10 @@ This project was developed as a technical challenge to demonstrate understanding
 - System design and architecture
 - Go programming best practices
 
+
 **Demo:**
-[Web App Demo](assets/webapp.mp4)
+
+https://github.com/user-attachments/assets/ba917128-84c0-43b8-bcec-9fce9f22a5eb
 
 ## Features
 
